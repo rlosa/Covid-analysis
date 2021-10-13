@@ -1,0 +1,66 @@
+---
+title: "Covid- PIB per capita e Vacinação"
+author: "Renato Losa"
+date: "24/08/2021"
+output:
+  word_document: default
+---
+
+```{r, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(outliers)
+covid = read_csv("owid-covid-data.csv") %>% mutate(Data = as_date(date,format= "%d-%m-%Y"))
+
+
+```
+
+Relação entre a idade média da população e mortes por milhão de COVID-19 em vários países.
+O conhecimento sobre o COVID-19 que têm-se desde o início da pandemia considera os mais idosos como um grupo de maior risco de morte no caso de contraírem a doença. Isso se dá por uma série de fatores, tais como imunidade mais frágil, problemas crônicos de saúde e outras questôes.
+Buscou-se analisar se a correlação entre idade e mortes por COVID-19 mostrou-se válida nos vários países do mundo, considerando a idade média de cada um dos países. O gráfico abaixo mostra essa correlação positiva, tal como se podia imaginar
+```{r}
+covidb <- covid %>% select('location', 'date', 'median_age','total_deaths_per_million') %>% filter( date == '2021-08-01') %>% filter(total_deaths_per_million > 0, median_age > 0) %>% as_tibble()
+
+
+
+linhas <- c(128,177)
+covidb <- covidb[-linhas,]
+
+
+ggplot(covidb,aes(x = median_age, y =total_deaths_per_million)) + geom_point(color = 'red', fill = 'black', size = 2)+theme_bw()+geom_smooth(method ="lm", se= FALSE)
+total_deaths_per_million1 <- covidb$total_deaths_per_million
+
+```
+ 
+Para esta segunda análise, busquei analisar se há relação direta entre o avanço da vacinação e o PIB per capita (medida da riqueza do país). Não é necessariamente uma relação de causalidade, mas é uma medida observacional bastante importante para evidenciar a desigualdade na distribuição e aplicação de doses da vacina.
+Quanto ao tratamento dos dados, fechei minha apuração no dia 1º de agosto de 2021, desconsiderei países sem dados de PIB per capita e de vacinação, além disso, para evitar outrliers de países com PIB per capita muito elevado, restringi até 80000 dólares americanos,além disso traduzi as variáveis e os nomes dos continentes
+```{R}
+
+vacinação <- covid %>%select(Data,location,continent, gdp_per_capita,people_vaccinated_per_hundred)%>% filter(Data == "2021-08-01") %>% rename( 'PIB_per_capita' = gdp_per_capita, 'Continente' = continent, 'Vacinados_por_centena' = people_vaccinated_per_hundred)%>% arrange(Vacinados_por_centena) %>% filter(PIB_per_capita < 80000)
+```
+
+```{r}
+vacinação$Continente[vacinação$Continente == "Europe"] <- "Europa"
+vacinação$Continente[vacinação$Continente == "North America"] <- "América do Norte"
+vacinação$Continente[vacinação$Continente == "South America"] <- "América do Sul"
+vacinação$Continente[vacinação$Continente == "Asia"] <- "Ásia"
+vacinação$Continente[vacinação$Continente == "Africa"]<- "África"
+vacinação<- vacinação[-90,]
+africa <-fortify(vacinação[vacinação$Continente == "África"])
+```
+
+```{r}
+ggplot(vacinação,aes(x = PIB_per_capita, y =  Vacinados_por_centena)) + geom_point(aes(col = Continente))+geom_smooth(method ="lm", se= FALSE, color = 'purple')+
+labs(title = 'Relação entre PIB per Capita e Vacinados,separados por continente', x = 'PIB per Capita', y = 'Vacinados p/ centena', caption = 'Fonte: Universidade de Oxford,2021')+  scale_colour_brewer(palette = "Dark2")
+
+```
+
+
+
+
+```
+
+
+
