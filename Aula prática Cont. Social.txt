@@ -1,0 +1,54 @@
+#Baixando e limpando o banco de dados
+install.packages("pacman")
+library(pacman)
+p_load("sidrar","dplyr","janitor","xts","reshape2","ggplot2","tidyr")
+
+PIB <- get_sidra(api = "/t/1846/n1/all/v/all/p/all/c11255/90687,90691,90696,90705,90706,90707,93404,93405,93406,93407,93408,102880/d/v585%200", header=TRUE)%>%
+clean_names()%>%
+select(valor,trimestre_codigo,setores_e_subsetores)%>%
+mutate(date=as.yearqtr(trimestre_codigo, format='%Y%q'))%>% 
+spread(setores_e_subsetores,valor)%>%
+clean_names()
+
+#PIB pela ótica do dispêndio
+PIBdespesa <- PIB %>% select(date,despesa_de_consumo_das_familias,despesa_de_consumo_da_administracao_publica,
+variacao_de_estoque,formacao_bruta_de_capital_fixo,exportacao_de_bens_e_servicos,importacao_de_bens_e_servicos)%>% select(date,despesa_de_consumo_das_familias,despesa_de_consumo_da_administracao_publica,formacao_bruta_de_capital_fixo,variacao_de_estoque,exportacao_de_bens_e_servicos,importacao_de_bens_e_servicos)%>%
+rename(consumo_das_familias = despesa_de_consumo_das_familias, gastos_do_governo = despesa_de_consumo_da_administracao_publica, Data = date) %>% 
+melt(id.vars = 'Data', variable.name = 'Componentes', value.name = 'Valor')
+
+PIBdespesa100 <- PIBdespesa %>% group_by(Data, Componentes) %>% 
+summarise(n = sum(Valor)) %>%
+mutate(percentagem = n / sum(n))
+
+ggplot(PIBdespesa100, aes(x = Data, y = percentagem*100,fill= Componentes)) + geom_area()+ labs(y='Percentagem de participação do PIB',title = "Participação dos componentes da despesa no PIB", subtitle = "Fonte:IBGE")
+
+ggplot(PIBdespesa, aes(x = Data,y=Valor,fill =Componentes)) + geom_area(aes(colour = Componentes)) + labs(y='Valores,em milhares de reais')
+
+
+#PIB pela ótica da oferta
+
+PIBoferta <- PIB %>% select(date,impostos_liquidos_sobre_produtos,valor_adicionado_a_precos_basicos)%>% rename(Data= date,Valor_adicionado =valor_adicionado_a_precos_basicos, Impostos_líquidos = impostos_liquidos_sobre_produtos) %>% melt(id.vars = 'Data', variable.name = 'Componentes', value.name = 'Valor')
+
+PIBoferta100 <- PIBoferta %>% group_by(Data, Componentes) %>% 
+summarise(n = sum(Valor)) %>%
+mutate(percentagem = n / sum(n))
+
+ggplot(PIBoferta, aes(x = Data,y=Valor,fill = Componentes)) + geom_area(aes(colour = Componentes)) + labs(y='Valores,em milhares de reais')
+
+
+ggplot(PIBoferta100, aes(x = Data, y = percentagem*100,fill= Componentes)) + geom_area()+ labs(y='Percentagem de participação do PIB',title = "Participação dos componentes da oferta no PIB", subtitle = "Fonte:IBGE")
+
+#participação dos setores da economia no PIB
+
+PIBsetores<- PIB %>% select(agropecuaria_total,industria_total,servicos_total,date)%>% 
+rename(Agropecuária = agropecuaria_total,Indústria = industria_total,Serviços = servicos_total, Data = date)%>% 
+melt(id.vars = 'Data', variable.name = 'Setores', value.name= 'Valor')
+
+
+
+ggplot(PIBsetores, aes(x = Data, y = Valor)) + geom_area(aes(colour = Setores, fill = Setores))+ labs(y='Valores em milhares de reais',title = "Participação dos setores da economia no PIB", subtitle = "Fonte:IBGE")
+PIBsetores100 <- PIBsetores %>% group_by(Data, Setores) %>% 
+summarise(n = sum(Valor)) %>%
+mutate(percentagem = n / sum(n))
+
+ggplot(PIBsetores100, aes(x = Data, y = percentagem*100,fill= Setores)) + geom_area()+ labs(y='Percentagem de participação do PIB',title = "Participação dos setores da economia no PIB", subtitle = "Fonte:IBGE")
